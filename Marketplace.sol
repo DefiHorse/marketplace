@@ -28,7 +28,7 @@ contract Marketplace is Ownable, Pausable, ReentrancyGuard {
 
     uint256 constant public ONE_HUNDRED_PERCENT = 10000; // 100%
 
-    uint256 public systemFeePercent;
+    uint256 public systemFeePercent = 0; // 000 => 0.0%;
     address public taxAddress;
 
     // erc20 address => status
@@ -63,10 +63,6 @@ contract Marketplace is Ownable, Pausable, ReentrancyGuard {
     modifier inWhitelist(address erc721, address erc20) {
         require(erc721Whitelist[erc721] && erc20Whitelist[erc20], "Marketplace: erc721 and erc20 must be in whitelist");
         _;
-    }
-
-    constructor () {
-        systemFeePercent = 0; // 000 => 0.0%
     }
 
     function setSystemFeePercent(uint256 percent)
@@ -268,7 +264,7 @@ contract Marketplace is Ownable, Pausable, ReentrancyGuard {
         delete bids[erc721][tokenId][bidId];
     }
 
-    function buy(address erc721, uint256 tokenId, uint256 price)
+    function buy(address erc721, address erc20, uint256 tokenId, uint256 price)
         public
         payable
         whenNotPaused
@@ -281,6 +277,8 @@ contract Marketplace is Ownable, Pausable, ReentrancyGuard {
         require(info.price > 0, "Marketplace: token is not for sale");
 
         require(info.price == price, "Marketplace: price does not match");
+
+        require(info.erc20 == erc20, "Marketplace: erc20 does not match");
 
         require(info.seller != msgSender, "Marketplace: owner can not buy");
 
@@ -306,6 +304,8 @@ contract Marketplace is Ownable, Pausable, ReentrancyGuard {
     function _payout(address erc721, address erc20, uint256 tokenId, uint256 price, address seller)
         internal
     {
+        require(taxAddress != address(0), "tax address is not set");
+
         uint256 systemFeePayment = _computeSystemFee(price, systemFeePercent);
 
         uint256 sellerPayment = price - systemFeePayment;
